@@ -2,7 +2,6 @@
 **TFM** is a lightweight, high-performance automation tool for the "The Forge" game mode in Roblox. Built entirely in **Rust**, it focuses on speed, safety, and low resource usage.
 *(Make sure to upload your screenshot to the repo and name it strictly like this, or change this link)*
 
-  # The Forge Macro
 <div align="center">
  <img width="302" height="282" alt="image" src="https://github.com/user-attachments/assets/a3fae40b-2f24-4e9f-8bb8-97c9a2fed61e" />
 </div>
