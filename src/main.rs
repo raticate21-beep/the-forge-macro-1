@@ -27,47 +27,56 @@ fn main() {
 
         ..Default::default()
     };
+    let is_clicked = Arc::new(AtomicBool::new(false));
+    let is_luck = Arc::new(AtomicBool::new(false));
+    let is_sell = Arc::new(AtomicBool::new(false));
+    let is_busy = Arc::new(AtomicBool::new(false));
+
+    let clicker_busy_flag = is_busy.clone();
+    let clicker_running_flag = is_clicked.clone();
+
+    thread::spawn(move || {
+        macro_forge::clicker(clicker_running_flag, clicker_busy_flag);
+    });
+
+    let luck_busy_flag = is_busy.clone();
+    let luck_running_flag = is_luck.clone();
+
+    thread::spawn(move || {
+        macro_forge::luck(luck_running_flag, luck_busy_flag);
+    });
     eframe::run_native(
         "TFM",
         native_options,
-        Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc, is_clicked, is_luck, is_sell)))),
     );
 }
 
 struct MyEguiApp {
-    is_clicked: Arc<AtomicBool>,
-    is_luck: Arc<AtomicBool>,
-    is_sell: Arc<AtomicBool>,
-}
-impl Default for MyEguiApp {
-    fn default() -> Self {
-        let is_clicked = Arc::new(AtomicBool::new(false));
-        let is_luck = Arc::new(AtomicBool::new(false));
-        let is_sell = Arc::new(AtomicBool::new(false));
-
-        let thread_flag = is_clicked.clone();
-
-        thread::spawn(move || {
-            macro_forge::clicker(thread_flag);
-        });
-
-        Self {
-            is_clicked,
-            is_luck,
-            is_sell,
-        }
-    }
+    pub is_clicked: Arc<AtomicBool>,
+    pub is_luck: Arc<AtomicBool>,
+    pub is_sell: Arc<AtomicBool>,
 }
 
 impl MyEguiApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(
+        _cc: &eframe::CreationContext<'_>,
+        is_clicked: Arc<AtomicBool>,
+        is_luck: Arc<AtomicBool>,
+        is_sell: Arc<AtomicBool>,
+    ) -> Self {
         let my_font_data = include_bytes!("../assets/Montserrat-SemiBold.ttf");
         fonts::font_set(my_font_data);
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
-        Self::default()
+
+        Self {
+            is_clicked,
+            is_luck,
+            is_sell,
+        }
     }
 }
 
@@ -158,7 +167,9 @@ impl eframe::App for MyEguiApp {
 
                             let mut luck_state =
                                 self.is_luck.load(std::sync::atomic::Ordering::Relaxed);
-                            if switch_ui::toggle_ui(ui, &mut luck_state).changed() {
+                            switch_ui::toggle_ui(ui, &mut luck_state);
+                            if luck_state != self.is_luck.load(std::sync::atomic::Ordering::Relaxed)
+                            {
                                 self.is_luck
                                     .store(luck_state, std::sync::atomic::Ordering::Relaxed);
                             }
