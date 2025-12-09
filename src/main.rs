@@ -5,10 +5,7 @@ use std::{
 };
 
 use active_win_pos_rs::get_active_window;
-use eframe::{
-    egui::{self, RichText},
-    epaint::image,
-};
+use eframe::egui::{self, RichText, mutex::Mutex};
 
 mod fonts;
 mod macro_forge;
@@ -32,6 +29,8 @@ fn main() {
     let is_sell = Arc::new(AtomicBool::new(false));
     let is_busy = Arc::new(AtomicBool::new(false));
 
+    let potion_key = Arc::new(Mutex::new("3".to_string()));
+
     let clicker_busy_flag = is_busy.clone();
     let clicker_running_flag = is_clicked.clone();
 
@@ -41,14 +40,19 @@ fn main() {
 
     let luck_busy_flag = is_busy.clone();
     let luck_running_flag = is_luck.clone();
+    let luck_key_flag = potion_key.clone();
 
     thread::spawn(move || {
-        macro_forge::luck(luck_running_flag, luck_busy_flag);
+        macro_forge::luck(luck_running_flag, luck_busy_flag, luck_key_flag);
     });
     eframe::run_native(
         "TFM",
         native_options,
-        Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc, is_clicked, is_luck, is_sell)))),
+        Box::new(|cc| {
+            Ok(Box::new(MyEguiApp::new(
+                cc, is_clicked, is_luck, is_sell, potion_key,
+            )))
+        }),
     );
 }
 
@@ -56,6 +60,7 @@ struct MyEguiApp {
     pub is_clicked: Arc<AtomicBool>,
     pub is_luck: Arc<AtomicBool>,
     pub is_sell: Arc<AtomicBool>,
+    pub potion_key: Arc<Mutex<String>>,
 }
 
 impl MyEguiApp {
@@ -64,6 +69,7 @@ impl MyEguiApp {
         is_clicked: Arc<AtomicBool>,
         is_luck: Arc<AtomicBool>,
         is_sell: Arc<AtomicBool>,
+        potion_key: Arc<Mutex<String>>,
     ) -> Self {
         let my_font_data = include_bytes!("../assets/Montserrat-SemiBold.ttf");
         fonts::font_set(my_font_data);
@@ -76,6 +82,7 @@ impl MyEguiApp {
             is_clicked,
             is_luck,
             is_sell,
+            potion_key,
         }
     }
 }
@@ -150,39 +157,51 @@ impl eframe::App for MyEguiApp {
                         .striped(false)
                         .show(ui, |ui| {
                             ui.label("⛏ Mining Clicker");
-
                             let mut mining_state =
                                 self.is_clicked.load(std::sync::atomic::Ordering::Relaxed);
-                            switch_ui::toggle_ui(ui, &mut mining_state);
-
-                            if mining_state
-                                != self.is_clicked.load(std::sync::atomic::Ordering::Relaxed)
-                            {
-                                self.is_clicked
-                                    .store(mining_state, std::sync::atomic::Ordering::Relaxed);
-                            }
+                            ui.horizontal(|ui| {
+                                if switch_ui::toggle_ui(ui, &mut mining_state).changed() {
+                                    self.is_clicked
+                                        .store(mining_state, std::sync::atomic::Ordering::Relaxed);
+                                }
+                            });
                             ui.end_row();
 
                             ui.label("🍀 Luck Potion");
 
-                            let mut luck_state =
-                                self.is_luck.load(std::sync::atomic::Ordering::Relaxed);
-                            switch_ui::toggle_ui(ui, &mut luck_state);
-                            if luck_state != self.is_luck.load(std::sync::atomic::Ordering::Relaxed)
-                            {
-                                self.is_luck
-                                    .store(luck_state, std::sync::atomic::Ordering::Relaxed);
-                            }
+                            ui.horizontal(|ui| {
+                                let mut luck_state =
+                                    self.is_luck.load(std::sync::atomic::Ordering::Relaxed);
+                                if switch_ui::toggle_ui(ui, &mut luck_state).changed() {
+                                    self.is_luck
+                                        .store(luck_state, std::sync::atomic::Ordering::Relaxed);
+                                }
+                                ui.add_space(10.0);
+
+                                ui.label("Key:");
+
+                                {
+                                    let mut key = self.potion_key.lock();
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut *key)
+                                            .desired_width(15.0)
+                                            .char_limit(1)
+                                            .horizontal_align(egui::Align::Center),
+                                    );
+                                }
+                            });
+
                             ui.end_row();
 
                             ui.label("💰 Auto Sell");
-
                             let mut sell_state =
                                 self.is_sell.load(std::sync::atomic::Ordering::Relaxed);
-                            if switch_ui::toggle_ui(ui, &mut sell_state).changed() {
-                                self.is_sell
-                                    .store(sell_state, std::sync::atomic::Ordering::Relaxed);
-                            }
+                            ui.horizontal(|ui| {
+                                if switch_ui::toggle_ui(ui, &mut sell_state).changed() {
+                                    self.is_sell
+                                        .store(sell_state, std::sync::atomic::Ordering::Relaxed);
+                                }
+                            });
                             ui.end_row();
                         });
                 });

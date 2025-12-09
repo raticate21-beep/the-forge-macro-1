@@ -1,4 +1,5 @@
 use active_win_pos_rs::{self, get_active_window};
+use eframe::egui::mutex::Mutex;
 use enigo::{
     Button, Coordinate,
     Direction::{Click, Press, Release},
@@ -38,7 +39,7 @@ pub fn clicker(is_running: Arc<AtomicBool>, is_busy: Arc<AtomicBool>) {
         }
     }
 }
-pub fn luck(is_luck: Arc<AtomicBool>, is_busy: Arc<AtomicBool>) {
+pub fn luck(is_luck: Arc<AtomicBool>, is_busy: Arc<AtomicBool>, potion_key: Arc<Mutex<String>>) {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
     let target_window_name = "roblox";
 
@@ -51,7 +52,10 @@ pub fn luck(is_luck: Arc<AtomicBool>, is_busy: Arc<AtomicBool>) {
                     if last_potion_time.elapsed() >= Duration::from_secs(300) {
                         is_busy.store(true, sync::atomic::Ordering::Relaxed);
 
-                        let _ = enigo.key(Key::Unicode('5'), Click);
+                        let _ = enigo.key(
+                            Key::Unicode(potion_key.lock().chars().next().unwrap_or('3')),
+                            Click,
+                        );
                         thread::sleep(Duration::from_millis(100));
                         let _ = enigo.button(Button::Left, Press);
                         thread::sleep(Duration::from_millis(2500));
