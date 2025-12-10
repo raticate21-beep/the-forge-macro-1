@@ -1,5 +1,5 @@
 use active_win_pos_rs::{self, get_active_window};
-use eframe::egui::{self, mutex::Mutex};
+use eframe::egui::mutex::Mutex;
 use enigo::{
     Button, Coordinate,
     Direction::{Click, Press, Release},
@@ -7,9 +7,9 @@ use enigo::{
 };
 use rand::Rng;
 use std::thread;
-use std::time::Duration;
+use std::{error::Error, time::Duration};
 use std::{
-    sync::{self, atomic::AtomicBool, Arc},
+    sync::{self, Arc, atomic::AtomicBool},
     time::Instant,
 };
 
@@ -91,6 +91,67 @@ pub fn luck(is_luck: Arc<AtomicBool>, is_busy: Arc<AtomicBool>, potion_key: Arc<
         }
     }
 }
+
+pub fn smooth_move_mouse(
+    enigo: &mut Enigo,
+    target_x: i32,
+    target_y: i32,
+    steps: i32,
+    delay_ms: u64,
+) -> Result<(), Box<dyn Error>> {
+    // 1. Pobieramy pozycję okna
+    let window = match get_active_window() {
+        Ok(win) => win,
+        Err(_) => return Err("Not found active window!".into()),
+    };
+
+    let win_x = window.position.x as f64;
+    let win_y = window.position.y as f64;
+    let win_w = window.position.width as f64;
+    let win_h = window.position.height as f64;
+
+    let base_width: f64 = 2560.0;
+    let base_height: f64 = 1440.0;
+
+    let scale_x = win_w / base_width;
+    let scale_y = win_h / base_height;
+
+    let final_target_x = win_x + (target_x as f64 * scale_x);
+    let final_target_y = win_y + (target_y as f64 * scale_y);
+
+    let (start_x, start_y) = enigo.location()?;
+
+    let dx = final_target_x - start_x as f64;
+    let dy = final_target_y - start_y as f64;
+
+    let step_x_f = dx / steps as f64;
+    let step_y_f = dy / steps as f64;
+
+    for i in 1..=steps {
+        let current_x = start_x as f64 + step_x_f * i as f64;
+        let current_y = start_y as f64 + step_y_f * i as f64;
+
+        enigo
+            .move_mouse(
+                current_x.round() as i32,
+                current_y.round() as i32,
+                Coordinate::Abs,
+            )
+            .unwrap();
+
+        thread::sleep(Duration::from_millis(delay_ms));
+    }
+
+    Ok(())
+}
+pub fn mouse_click_release() {
+    thread::sleep(Duration::from_millis(1000));
+    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let _ = enigo.button(Button::Left, Press);
+    thread::sleep(Duration::from_millis(1000));
+    let _ = enigo.button(Button::Left, Release);
+    thread::sleep(Duration::from_millis(1000));
+}
 pub fn sell(is_sell: Arc<AtomicBool>, is_busy: Arc<AtomicBool>, time_key: Arc<Mutex<u8>>) {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
     let target_window_name = "roblox";
@@ -111,23 +172,23 @@ pub fn sell(is_sell: Arc<AtomicBool>, is_busy: Arc<AtomicBool>, time_key: Arc<Mu
                             )
                             .is_ok()
                         {
+                            thread::sleep(Duration::from_millis(1000));
+                            let _ = enigo.key(Key::Unicode('1'), Click);
+                            thread::sleep(Duration::from_millis(1000));
                             let _ = enigo.key(Key::Unicode('t'), Click);
-                            thread::sleep(Duration::from_millis(600));
-                            let _ = enigo.move_mouse(750, 1050, Coordinate::Abs);
-                            let _ = enigo.button(Button::Left, Click);
-                            thread::sleep(Duration::from_millis(50));
-                            let _ = enigo.move_mouse(1750, 480, Coordinate::Abs);
-                            let _ = enigo.button(Button::Left, Click);
-                            thread::sleep(Duration::from_millis(300));
-                            let _ = enigo.move_mouse(1270, 920, Coordinate::Abs);
-                            let _ = enigo.button(Button::Left, Click);
-                            thread::sleep(Duration::from_millis(50));
-                            let _ = enigo.move_mouse(1250, 990, Coordinate::Abs);
-                            let _ = enigo.button(Button::Left, Click);
-                            //code selling
-                            thread::sleep(Duration::from_millis(300));
-                            let _ = enigo.key(Key::Unicode('t'), Click);
-                            thread::sleep(Duration::from_millis(300));
+                            thread::sleep(Duration::from_millis(1000));
+                            let _ = smooth_move_mouse(&mut enigo, 730, 1050, 30, 20);
+                            mouse_click_release();
+                            let _ = smooth_move_mouse(&mut enigo, 1770, 490, 60, 40);
+                            mouse_click_release();
+                            let _ = smooth_move_mouse(&mut enigo, 1280, 900, 30, 20);
+                            mouse_click_release();
+                            let _ = smooth_move_mouse(&mut enigo, 1280, 1000, 30, 20);
+                            mouse_click_release();
+                            let _ = smooth_move_mouse(&mut enigo, 1050, 750, 30, 20);
+                            mouse_click_release();
+                            let _ = smooth_move_mouse(&mut enigo, 1850, 300, 30, 20);
+                            mouse_click_release();
                             let _ = enigo.key(Key::Unicode('1'), Click);
                             last_sell_time = Instant::now();
                             is_busy.store(false, sync::atomic::Ordering::Relaxed);
