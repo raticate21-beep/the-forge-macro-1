@@ -52,6 +52,7 @@ impl MacroBot {
             Ok(win) => win,
             Err(_) => return Err("Brak aktywnego okna".into()),
         };
+        let mut rng = rand::rng();
 
         let win_x = window.position.x as f64;
         let win_y = window.position.y as f64;
@@ -88,7 +89,7 @@ impl MacroBot {
             thread::sleep(Duration::from_millis(delay_ms));
         }
 
-        let wiggle_pixels = 80.0;
+        let wiggle_pixels = rng.random_range(10..80) as f64;
         let wiggle_steps = 10;
 
         for i in 1..=wiggle_steps {

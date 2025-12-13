@@ -7,12 +7,17 @@ use std::{
 use active_win_pos_rs::get_active_window;
 use eframe::egui::{self, mutex::Mutex};
 
+use crate::config::AppConfig;
+
+mod config;
 mod fonts;
 mod macro_forge;
 mod switch_ui;
 
 fn main() {
     let icon = fonts::load_icon();
+    let loaded_config = config::AppConfig::load();
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([300.0, 250.0])
@@ -30,8 +35,8 @@ fn main() {
     let is_sell = Arc::new(AtomicBool::new(false));
     let is_busy = Arc::new(AtomicBool::new(false));
 
-    let potion_key = Arc::new(Mutex::new("3".to_string()));
-    let time_key = Arc::new(Mutex::new(15));
+    let potion_key = Arc::new(Mutex::new(loaded_config.potion_key));
+    let time_key = Arc::new(Mutex::new(loaded_config.time_key));
 
     let clicker_busy_flag = is_busy.clone();
     let clicker_running_flag = is_clicked.clone();
@@ -96,6 +101,18 @@ impl MyEguiApp {
             is_sell,
             potion_key,
             time_key,
+        }
+    }
+    fn save_state(&self) {
+        let config_to_save = AppConfig {
+            potion_key: self.potion_key.lock().clone(),
+            time_key: *self.time_key.lock(),
+        };
+
+        if let Err(e) = config_to_save.save() {
+            eprintln!("Failed save config! {}", e);
+        } else {
+            println!("Config save");
         }
     }
 }
@@ -230,5 +247,8 @@ impl eframe::App for MyEguiApp {
                 });
             });
         });
+    }
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        self.save_state();
     }
 }
