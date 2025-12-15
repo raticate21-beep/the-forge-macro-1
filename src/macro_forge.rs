@@ -138,10 +138,23 @@ pub fn clicker(is_running: Arc<AtomicBool>, is_busy: Arc<AtomicBool>) {
 }
 
 pub fn luck(is_luck: Arc<AtomicBool>, is_busy: Arc<AtomicBool>, potion_key: Arc<Mutex<String>>) {
+    const MAX_LUCK_ACTIONS: u8 = 10;
+
     let mut bot = MacroBot::new();
     let mut last_potion_time = Instant::now() - Duration::from_secs(300);
+    let mut luck_actions = 0;
 
     loop {
+        if !is_luck.load(sync::atomic::Ordering::Relaxed) {
+            luck_actions = 0;
+            last_potion_time = Instant::now() - Duration::from_secs(300);
+            thread::sleep(Duration::from_millis(200));
+            continue;
+        }
+        if luck_actions >= MAX_LUCK_ACTIONS {
+            is_luck.store(false, sync::atomic::Ordering::Relaxed);
+            continue;
+        }
         if !is_luck.load(sync::atomic::Ordering::Relaxed) {
             thread::sleep(Duration::from_millis(500));
             continue;
@@ -183,6 +196,7 @@ pub fn luck(is_luck: Arc<AtomicBool>, is_busy: Arc<AtomicBool>, potion_key: Arc<
 
         last_potion_time = Instant::now();
         is_busy.store(false, sync::atomic::Ordering::Relaxed);
+        luck_actions += 1;
     }
 }
 
